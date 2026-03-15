@@ -16,7 +16,7 @@ async function handler(req: NextRequest, ctx: ApiContext) {
 
   const regions = Object.entries(map).map(([region, provinces]) => ({
     region,
-    provinces: [...provinces].sort(),
+    provinces: Array.from(provinces).sort(),
     total_recipes: data?.filter(r => r.region === region).length || 0,
   }))
 
