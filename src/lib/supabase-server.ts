@@ -17,6 +17,7 @@ async function getTokensFromCookies(): Promise<{ access_token: string; refresh_t
   const allCookies = jar.getAll()
   const projectRef = SUPABASE_URL.split('//')[1].split('.')[0]
 
+  // Look for chunked cookies (sb-xxx-auth-token.0, .1, ...)
   const chunkKeys = allCookies
     .filter(c => c.name.startsWith(`sb-${projectRef}-auth-token.`))
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -33,15 +34,32 @@ async function getTokensFromCookies(): Promise<{ access_token: string; refresh_t
   if (!rawValue) return null
 
   try {
-    if (rawValue.startsWith('%')) rawValue = decodeURIComponent(rawValue)
-    if (rawValue.startsWith('"')) rawValue = JSON.parse(rawValue) as string
+    // Handle base64- prefix (Vercel production format)
+    if (rawValue.startsWith('base64-')) {
+      rawValue = Buffer.from(rawValue.slice(7), 'base64').toString('utf-8')
+    }
 
+    // Handle URL encoding
+    if (rawValue.startsWith('%')) {
+      rawValue = decodeURIComponent(rawValue)
+    }
+
+    // Handle double-stringified
+    if (rawValue.startsWith('"')) {
+      rawValue = JSON.parse(rawValue) as string
+    }
+
+    // Parse JSON
     if (typeof rawValue === 'string' && rawValue.startsWith('{')) {
       const parsed = JSON.parse(rawValue) as Record<string, string>
       if (parsed.access_token && parsed.refresh_token) {
-        return { access_token: parsed.access_token, refresh_token: parsed.refresh_token }
+        return {
+          access_token: parsed.access_token,
+          refresh_token: parsed.refresh_token,
+        }
       }
     }
+
     return null
   } catch {
     return null
@@ -54,7 +72,11 @@ export async function getServerSession() {
     if (!tokens) return null
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
-      auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
     })
 
     const { data, error } = await supabase.auth.setSession({
@@ -91,7 +113,7 @@ export async function createServerSupabase() {
       setAll(list: { name: string; value: string; options?: CookieOptions }[]) {
         try {
           list.forEach(({ name, value, options }) => jar.set(name, value, options))
-        } catch { /* ignore in Server Components */ }
+        } catch { /* ignore */ }
       },
     },
   })
