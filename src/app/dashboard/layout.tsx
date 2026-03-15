@@ -28,9 +28,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     (async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/auth/login'); return }
-      const { data: p } = await supabase.from('profiles').select('email, full_name, role').eq('id', session.user.id).single()
-      if (p?.role === 'admin') { router.push('/admin'); return }
-      setUser({ email: p?.email || session.user.email || '', name: p?.full_name || '' })
+
+      // Use /api/auth/me which uses service role — bypasses RLS
+      const res = await fetch('/api/auth/me')
+      if (!res.ok) { router.push('/auth/login'); return }
+
+      const profile = await res.json()
+
+      if (profile.role === 'admin') {
+        router.push('/admin')
+        return
+      }
+
+      setUser({ email: profile.email || session.user.email || '', name: profile.full_name || '' })
       setLoading(false)
     })()
   }, [])
@@ -90,25 +100,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           .ds-topbar{display:flex!important}
         }
         .ds-topbar{display:none;position:sticky;top:0;z-index:40;background:var(--bg-secondary);border-bottom:1px solid var(--border);padding:.875rem 1rem;align-items:center;gap:1rem}
-        .ds-overlay{display:none;position:fixed;inset:0;z-index:60}
       `}</style>
 
       <div style={{ display:'flex', minHeight:'100vh', background:'var(--bg-primary)' }}>
-        {/* Desktop sidebar */}
         <div className="ds-fixed" style={{ width:240, position:'fixed', top:0, left:0, bottom:0, zIndex:40 }}>
           <SidebarInner />
         </div>
 
-        {/* Mobile overlay */}
         {open && (
-          <div className="ds-overlay" style={{ display:'flex' }}>
+          <div style={{ position:'fixed', inset:0, zIndex:60, display:'flex' }}>
             <div style={{ width:240, height:'100%' }}><SidebarInner /></div>
             <div style={{ flex:1, background:'rgba(0,0,0,.6)' }} onClick={() => setOpen(false)} />
           </div>
         )}
 
         <div className="ds-main" style={{ flex:1, marginLeft:240, display:'flex', flexDirection:'column', minHeight:'100vh' }}>
-          {/* Mobile topbar */}
           <div className="ds-topbar">
             <button onClick={() => setOpen(true)} style={{ background:'none', border:'none', color:'var(--text-primary)', cursor:'pointer', fontSize:'1.25rem' }}>☰</button>
             <span style={{ fontFamily:'var(--font-display)', fontWeight:700, color:'var(--text-primary)', fontSize:'.95rem', flex:1 }}>🍛 Kograph APIs</span>

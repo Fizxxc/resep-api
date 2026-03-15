@@ -16,14 +16,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [ready, setReady] = useState(false)
   const [open,  setOpen]  = useState(false)
 
-  const supabase = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/auth/login'); return }
-      const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single()
-      if (data?.role !== 'admin') { router.push('/dashboard'); return }
+
+      // Use /api/auth/me which uses service role — bypasses RLS
+      const res = await fetch('/api/auth/me')
+      if (!res.ok) { router.push('/auth/login'); return }
+
+      const profile = await res.json()
+      if (profile.role !== 'admin') { router.push('/dashboard'); return }
+
       setReady(true)
     })()
   }, [])
@@ -86,12 +95,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {open && (
           <div style={{ position:'fixed', inset:0, zIndex:60, display:'flex' }}>
             <div style={{ width:240, height:'100%' }}><SidebarInner /></div>
-            <div style={{ flex:1, background:'rgba(0,0,0,.6)' }} onClick={()=>setOpen(false)} />
+            <div style={{ flex:1, background:'rgba(0,0,0,.6)' }} onClick={() => setOpen(false)} />
           </div>
         )}
         <div className="ad-main" style={{ flex:1, marginLeft:240, display:'flex', flexDirection:'column', minHeight:'100vh' }}>
           <div className="ad-topbar">
-            <button onClick={()=>setOpen(true)} style={{ background:'none', border:'none', color:'var(--text-primary)', cursor:'pointer', fontSize:'1.25rem' }}>☰</button>
+            <button onClick={() => setOpen(true)} style={{ background:'none', border:'none', color:'var(--text-primary)', cursor:'pointer', fontSize:'1.25rem' }}>☰</button>
             <span style={{ fontFamily:'var(--font-display)', fontWeight:700, color:'#ef4444', fontSize:'.95rem', flex:1 }}>🛡️ Admin Panel</span>
             <button onClick={logout} style={{ background:'none', border:'none', color:'var(--text-muted)', cursor:'pointer', fontSize:'.8rem' }}>Keluar</button>
           </div>
