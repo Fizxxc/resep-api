@@ -72,7 +72,7 @@ Fix utama ada di **3 hal**:
 
 ## 🐛 Debug
 
-Buka `http://localhost:3000/api/debug-auth` untuk lihat status session, cookie, dan env vars.
+Buka `https://api-kograph.vercel.app/api/debug-auth` untuk lihat status session, cookie, dan env vars.
 
 ---
 
